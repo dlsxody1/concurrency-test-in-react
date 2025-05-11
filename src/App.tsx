@@ -1,4 +1,4 @@
-import { useState, useTransition, Suspense, type FC } from "react";
+import { useState, useTransition, Suspense, type FC, useCallback } from "react";
 import "./App.css";
 
 import { generateUsers, type User } from "./data";
@@ -7,7 +7,7 @@ import UserList from "./components/UserList";
 import CpuIntensiveTask from "./components/CpuIntensiveTask";
 
 // 사용자 데이터 생성
-const users: User[] = generateUsers(10000); // 10,000명의 사용자 데이터 생성
+const users: User[] = generateUsers(1000); // 1000명의 사용자 데이터 생성
 
 const App: FC = () => {
   const [query, setQuery] = useState<string>("");
@@ -19,18 +19,22 @@ const App: FC = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   // 검색 처리 함수
-  const handleSearch = (searchQuery: string): void => {
-    if (concurrencyEnabled) {
-      // 동시성 모드: useTransition 사용
-      // startTransition에 전달된 함수를 Action이라고 함.
-      startTransition(() => {
+  // useCallback으로 안정적인 함수 참조 생성
+  const handleSearch = useCallback(
+    (searchQuery: string): void => {
+      // 이전 쿼리와 같다면 상태 업데이트 방지
+      if (query === searchQuery) return;
+
+      if (concurrencyEnabled) {
+        startTransition(() => {
+          setQuery(searchQuery);
+        });
+      } else {
         setQuery(searchQuery);
-      });
-    } else {
-      // 일반 모드: 직접 상태 업데이트
-      setQuery(searchQuery);
-    }
-  };
+      }
+    },
+    [concurrencyEnabled, query]
+  );
 
   // 동시성 모드 전환 함수
   const toggleConcurrencyMode = (): void => {
@@ -73,32 +77,33 @@ const App: FC = () => {
             현재 모드: {concurrencyEnabled ? "동시성 모드" : "일반 모드"}
           </p>
         </div>
-
-        {isPending && (
-          <div className="mt-4 flex items-center gap-2 text-amber-600 font-bold pending-indicator">
-            <svg
-              className="animate-spin h-5 w-5"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <span>처리 중...</span>
-          </div>
-        )}
+        <div className="h-[50px]">
+          {isPending && (
+            <div className="mt-4 flex items-center gap-2 text-amber-600 font-bold pending-indicator">
+              <svg
+                className="animate-spin h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <span>처리 중...</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

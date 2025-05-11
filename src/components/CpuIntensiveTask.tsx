@@ -4,6 +4,20 @@ const CpuIntensiveTask: FC = () => {
   const [counter, setCounter] = useState<number>(0);
   const [primes, setPrimes] = useState<number[]>([]);
 
+  // 컴포넌트가 마운트되면 소수 찾기 시작
+  useEffect(() => {
+    // 명시적인 조건 추가
+    if (!document.hidden) {
+      const interval = setInterval(() => {
+        findNextPrimes();
+      }, 100); // 100ms마다 실행
+
+      return () => {
+        clearInterval(interval);
+      };
+    }
+  }, [counter]);
+
   // 소수 판별 함수
   const isPrime = (num: number): boolean => {
     if (num <= 1) return false;
@@ -45,17 +59,6 @@ const CpuIntensiveTask: FC = () => {
     setCounter(currentNum);
     setPrimes((prev) => [...prev, ...newPrimes].slice(-50)); // 최근 50개만 유지
   };
-
-  // 컴포넌트가 마운트되면 소수 찾기 시작
-  useEffect(() => {
-    const interval = setInterval(() => {
-      findNextPrimes();
-    }, 100); // 100ms마다 실행
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [counter]);
 
   return (
     <div className="space-y-4">

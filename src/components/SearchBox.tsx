@@ -4,6 +4,7 @@ import React, {
   useEffect,
   type ChangeEvent,
   type FormEvent,
+  useRef,
 } from "react";
 
 interface SearchBoxProps {
@@ -13,6 +14,17 @@ interface SearchBoxProps {
 const SearchBox: React.FC<SearchBoxProps> = ({ onSearch }) => {
   const [inputValue, setInputValue] = useState("");
   const [debouncedValue, setDebouncedValue] = useState("");
+  const initialRender = useRef(true);
+
+  // 첫 렌더링에서는 검색 함수 호출하지 않도록 처리
+  useEffect(() => {
+    if (initialRender.current) {
+      initialRender.current = false;
+      return;
+    }
+
+    onSearch(debouncedValue);
+  }, [debouncedValue, onSearch]);
 
   // 입력값 변경 처리
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>): void => {
