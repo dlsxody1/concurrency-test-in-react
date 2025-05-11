@@ -10,12 +10,20 @@ import CpuIntensiveTask from "./components/CpuIntensiveTask";
 // 사용자 데이터 생성
 const users: User[] = generateUsers(1000); // 1000명의 사용자 데이터 생성
 
+// 모드 타입 정의
+type AppMode = "normal" | "debounce" | "concurrency";
+
 const App: FC = () => {
   const [query, setQuery] = useState<string>("");
   const [isPending, startTransition] = useTransition();
-  const [concurrencyEnabled, setConcurrencyEnabled] = useState<boolean>(true);
-  const [debounceEnabled, setDebounceEnabled] = useState<boolean>(true);
+  const [mode, setMode] = useState<AppMode>("concurrency"); // 기본값은 동시성 모드
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+
+  // 현재 모드가 디바운스인지 확인
+  const isDebounceMode = mode === "debounce";
+
+  // 현재 모드가 동시성인지 확인
+  const isConcurrencyMode = mode === "concurrency";
 
   // 검색 처리 함수
   const handleSearch = useCallback(
@@ -23,27 +31,39 @@ const App: FC = () => {
       // 이전 쿼리와 같다면 상태 업데이트 방지
       if (query === searchQuery) return;
 
-      if (concurrencyEnabled) {
+      if (isConcurrencyMode) {
         // 동시성 모드: useTransition 사용
         startTransition(() => {
           setQuery(searchQuery);
         });
       } else {
-        // 일반 모드: 직접 상태 업데이트
+        // 일반 모드 또는 디바운스 모드: 직접 상태 업데이트
         setQuery(searchQuery);
       }
     },
-    [concurrencyEnabled, query]
+    [isConcurrencyMode, query]
   );
 
-  // 동시성 모드 전환 함수
-  const toggleConcurrencyMode = (): void => {
-    setConcurrencyEnabled(!concurrencyEnabled);
+  // 모드 전환 함수
+  const toggleMode = (): void => {
+    setMode((prevMode) => {
+      if (prevMode === "normal") return "debounce";
+      if (prevMode === "debounce") return "concurrency";
+      return "normal";
+    });
   };
 
-  // 디바운스 모드 전환 함수
-  const toggleDebounceMode = (): void => {
-    setDebounceEnabled(!debounceEnabled);
+  // 모드에 따른 버튼 스타일과 텍스트 설정
+  const getModeButtonStyle = (): string => {
+    if (mode === "normal") return "bg-blue-500 hover:bg-blue-600";
+    if (mode === "debounce") return "bg-purple-500 hover:bg-purple-600";
+    return "bg-green-500 hover:bg-green-600";
+  };
+
+  const getModeButtonText = (): string => {
+    if (mode === "normal") return "일반 모드";
+    if (mode === "debounce") return "디바운스 모드";
+    return "동시성 모드";
   };
 
   // CPU 부하 시작 함수
@@ -56,56 +76,29 @@ const App: FC = () => {
     setIsProcessing(false);
   };
 
-  // 현재 모드 텍스트 생성
-  const getModeText = (): string => {
-    if (concurrencyEnabled && debounceEnabled) return "둘 다 사용";
-    if (concurrencyEnabled) return "동시성만 사용";
-    if (debounceEnabled) return "디바운스만 사용";
-    return "기본 모드";
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 font-sans">
       <h1 className="text-center mb-8">React 동시성 데모</h1>
 
       <div className="flex flex-col items-center mb-8">
-        <div className="flex gap-4 mb-4">
-          <button
-            onClick={toggleConcurrencyMode}
-            className={`${
-              concurrencyEnabled
-                ? "bg-green-500 hover:bg-green-600"
-                : "bg-blue-500 hover:bg-blue-600"
-            } text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200 text-lg`}
-          >
-            {concurrencyEnabled ? "동시성 모드 ON" : "동시성 모드 OFF"}
-          </button>
-
-          <button
-            onClick={toggleDebounceMode}
-            className={`${
-              debounceEnabled
-                ? "bg-purple-500 hover:bg-purple-600"
-                : "bg-gray-500 hover:bg-gray-600"
-            } text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200 text-lg`}
-          >
-            {debounceEnabled ? "디바운스 모드 ON" : "디바운스 모드 OFF"}
-          </button>
-        </div>
+        <button
+          onClick={toggleMode}
+          className={`${getModeButtonStyle()} text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200 mb-4 text-lg`}
+        >
+          {getModeButtonText()}
+        </button>
 
         <div className="flex items-center gap-3 bg-gray-100 p-3 rounded-lg">
           <div
             className={`h-3 w-3 rounded-full ${
-              concurrencyEnabled && debounceEnabled
-                ? "bg-yellow-500"
-                : concurrencyEnabled
-                ? "bg-green-500"
-                : debounceEnabled
+              mode === "normal"
+                ? "bg-blue-500"
+                : mode === "debounce"
                 ? "bg-purple-500"
-                : "bg-gray-500"
+                : "bg-green-500"
             }`}
           ></div>
-          <p className="font-medium">현재 모드: {getModeText()}</p>
+          <p className="font-medium">현재 모드: {getModeButtonText()}</p>
         </div>
         <div className="h-[50px]">
           {isPending && (
@@ -139,7 +132,7 @@ const App: FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="card">
           <h2 className="mb-4">사용자 검색</h2>
-          <SearchBox onSearch={handleSearch} useDebounce={debounceEnabled} />
+          <SearchBox onSearch={handleSearch} useDebounce={isDebounceMode} />
         </div>
 
         <div className="card">
@@ -190,6 +183,25 @@ const App: FC = () => {
             <CpuIntensiveTask />
           </div>
         )}
+      </div>
+
+      <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h3 className="font-medium text-lg mb-2">모드 설명</h3>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>
+            <span className="font-medium text-blue-600">일반 모드:</span> 최적화
+            없이 모든 입력이 즉시 검색 결과에 반영됩니다.
+          </li>
+          <li>
+            <span className="font-medium text-purple-600">디바운스 모드:</span>{" "}
+            타이핑이 멈춘 후 300ms가 지난 후에만 검색이 실행됩니다.
+          </li>
+          <li>
+            <span className="font-medium text-green-600">동시성 모드:</span>{" "}
+            React 18의 useTransition을 사용하여 검색 작업의 우선순위를 낮춰 UI
+            응답성을 유지합니다.
+          </li>
+        </ul>
       </div>
     </div>
   );
