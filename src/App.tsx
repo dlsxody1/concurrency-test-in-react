@@ -1,3 +1,4 @@
+// App.tsx
 import { useState, useTransition, Suspense, type FC, useCallback } from "react";
 import "./App.css";
 
@@ -11,25 +12,24 @@ const users: User[] = generateUsers(1000); // 1000명의 사용자 데이터 생
 
 const App: FC = () => {
   const [query, setQuery] = useState<string>("");
-  //useTransition은 어떠한 매개변수도 받지 않음!
-  //isPending 플래그는 대기중인 Transition이 있는지 알려줌
-  //startTransition 함수는 상태 업데이트를 Transition으로 표시할 수 있음.
   const [isPending, startTransition] = useTransition();
   const [concurrencyEnabled, setConcurrencyEnabled] = useState<boolean>(true);
+  const [debounceEnabled, setDebounceEnabled] = useState<boolean>(true);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   // 검색 처리 함수
-  // useCallback으로 안정적인 함수 참조 생성
   const handleSearch = useCallback(
     (searchQuery: string): void => {
       // 이전 쿼리와 같다면 상태 업데이트 방지
       if (query === searchQuery) return;
 
       if (concurrencyEnabled) {
+        // 동시성 모드: useTransition 사용
         startTransition(() => {
           setQuery(searchQuery);
         });
       } else {
+        // 일반 모드: 직접 상태 업데이트
         setQuery(searchQuery);
       }
     },
@@ -39,6 +39,11 @@ const App: FC = () => {
   // 동시성 모드 전환 함수
   const toggleConcurrencyMode = (): void => {
     setConcurrencyEnabled(!concurrencyEnabled);
+  };
+
+  // 디바운스 모드 전환 함수
+  const toggleDebounceMode = (): void => {
+    setDebounceEnabled(!debounceEnabled);
   };
 
   // CPU 부하 시작 함수
@@ -51,31 +56,56 @@ const App: FC = () => {
     setIsProcessing(false);
   };
 
+  // 현재 모드 텍스트 생성
+  const getModeText = (): string => {
+    if (concurrencyEnabled && debounceEnabled) return "둘 다 사용";
+    if (concurrencyEnabled) return "동시성만 사용";
+    if (debounceEnabled) return "디바운스만 사용";
+    return "기본 모드";
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 font-sans">
       <h1 className="text-center mb-8">React 동시성 데모</h1>
 
       <div className="flex flex-col items-center mb-8">
-        <button
-          onClick={toggleConcurrencyMode}
-          className={`${
-            concurrencyEnabled
-              ? "bg-green-500 hover:bg-green-600"
-              : "bg-blue-500 hover:bg-blue-600"
-          } text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200 mb-4 text-lg`}
-        >
-          {concurrencyEnabled ? "동시성 모드 ON" : "동시성 모드 OFF"}
-        </button>
+        <div className="flex gap-4 mb-4">
+          <button
+            onClick={toggleConcurrencyMode}
+            className={`${
+              concurrencyEnabled
+                ? "bg-green-500 hover:bg-green-600"
+                : "bg-blue-500 hover:bg-blue-600"
+            } text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200 text-lg`}
+          >
+            {concurrencyEnabled ? "동시성 모드 ON" : "동시성 모드 OFF"}
+          </button>
+
+          <button
+            onClick={toggleDebounceMode}
+            className={`${
+              debounceEnabled
+                ? "bg-purple-500 hover:bg-purple-600"
+                : "bg-gray-500 hover:bg-gray-600"
+            } text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-200 text-lg`}
+          >
+            {debounceEnabled ? "디바운스 모드 ON" : "디바운스 모드 OFF"}
+          </button>
+        </div>
 
         <div className="flex items-center gap-3 bg-gray-100 p-3 rounded-lg">
           <div
             className={`h-3 w-3 rounded-full ${
-              concurrencyEnabled ? "bg-green-500" : "bg-blue-500"
+              concurrencyEnabled && debounceEnabled
+                ? "bg-yellow-500"
+                : concurrencyEnabled
+                ? "bg-green-500"
+                : debounceEnabled
+                ? "bg-purple-500"
+                : "bg-gray-500"
             }`}
           ></div>
-          <p className="font-medium">
-            현재 모드: {concurrencyEnabled ? "동시성 모드" : "일반 모드"}
-          </p>
+          <p className="font-medium">현재 모드: {getModeText()}</p>
         </div>
         <div className="h-[50px]">
           {isPending && (
@@ -109,7 +139,7 @@ const App: FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="card">
           <h2 className="mb-4">사용자 검색</h2>
-          <SearchBox onSearch={handleSearch} />
+          <SearchBox onSearch={handleSearch} useDebounce={debounceEnabled} />
         </div>
 
         <div className="card">

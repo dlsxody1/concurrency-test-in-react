@@ -1,22 +1,9 @@
-import { useState, useEffect, type FC } from "react";
+// src/components/CpuIntensiveTask.tsx
+import { useState, useEffect, useCallback, type FC } from "react";
 
 const CpuIntensiveTask: FC = () => {
   const [counter, setCounter] = useState<number>(0);
   const [primes, setPrimes] = useState<number[]>([]);
-
-  // 컴포넌트가 마운트되면 소수 찾기 시작
-  useEffect(() => {
-    // 명시적인 조건 추가
-    if (!document.hidden) {
-      const interval = setInterval(() => {
-        findNextPrimes();
-      }, 100); // 100ms마다 실행
-
-      return () => {
-        clearInterval(interval);
-      };
-    }
-  }, [counter]);
 
   // 소수 판별 함수
   const isPrime = (num: number): boolean => {
@@ -34,8 +21,8 @@ const CpuIntensiveTask: FC = () => {
     return true;
   };
 
-  // CPU 부하를 주는 함수
-  const findNextPrimes = (): void => {
+  // CPU 부하를 주는 함수를 useCallback으로 메모이제이션
+  const findNextPrimes = useCallback((): void => {
     let count: number = 0;
     let currentNum: number = counter;
     const newPrimes: number[] = [];
@@ -58,7 +45,23 @@ const CpuIntensiveTask: FC = () => {
 
     setCounter(currentNum);
     setPrimes((prev) => [...prev, ...newPrimes].slice(-50)); // 최근 50개만 유지
-  };
+  }, [counter]);
+
+  // 컴포넌트가 마운트되면 소수 찾기 시작
+  useEffect(() => {
+    // 문서가 보이는 상태일 때만 실행
+    if (!document.hidden) {
+      const interval = setInterval(() => {
+        findNextPrimes();
+      }, 100); // 100ms마다 실행
+
+      return () => {
+        clearInterval(interval);
+      };
+    }
+
+    // counter를 의존성 배열에서 제거하고 findNextPrimes를 useCallback으로 메모이제이션
+  }, [findNextPrimes]);
 
   return (
     <div className="space-y-4">
